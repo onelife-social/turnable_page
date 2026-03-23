@@ -44,19 +44,19 @@ class TurnablePageView extends StatefulWidget {
   State<TurnablePageView> createState() => _TurnablePageViewState();
 }
 
-class _TurnablePageViewState extends State<TurnablePageView>
-    with SingleTickerProviderStateMixin {
+class _TurnablePageViewState extends State<TurnablePageView> with SingleTickerProviderStateMixin {
   late PageFlip _pageFlip;
   bool _isZooming = false;
   int _pointerCount = 0;
-  final TransformationController _transformationController =
-      TransformationController();
+  final TransformationController _transformationController = TransformationController();
   late AnimationController _animationController;
   Animation<Matrix4>? _animation;
 
   /// Index of the currently visible (left) page, used to compute the
   /// rendering window.
   late int _currentPageIndex;
+  bool _postFrameRebuildScheduled = false;
+  bool _isSyncingStartPage = false;
 
   FlipSettings get _settings => widget.settings.copyWith(
     width: widget.bookSize.width,
@@ -81,11 +81,47 @@ class _TurnablePageViewState extends State<TurnablePageView>
   void dispose() {
     _transformationController.dispose();
     _animationController.dispose();
-    widget.cacheManager?.dispose();
     super.dispose();
   }
 
   int get pointerCount => _pointerCount;
+
+  @override
+  void didUpdateWidget(covariant TurnablePageView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.controller != widget.controller) {
+      widget.controller?.initializeController(pageFlip: _pageFlip);
+    }
+
+    _syncStartPageIndex(oldWidget);
+  }
+
+  void _syncStartPageIndex(TurnablePageView oldWidget) {
+    if (widget.pageCount <= 0) {
+      return;
+    }
+
+    final targetIndex = widget.settings.startPageIndex.clamp(0, widget.pageCount - 1);
+    final pageCountChanged = oldWidget.pageCount != widget.pageCount;
+    final startPageChanged = oldWidget.settings.startPageIndex != widget.settings.startPageIndex;
+
+    if (!pageCountChanged && !startPageChanged && _currentPageIndex == targetIndex) {
+      return;
+    }
+
+    _currentPageIndex = targetIndex;
+
+    if (_pageFlip.pages != null && _pageFlip.getCurrentPageIndex() != targetIndex) {
+      _isSyncingStartPage = true;
+      _pageFlip.updateSetting(_settings);
+      _pageFlip.turnToPage(targetIndex);
+      _isSyncingStartPage = false;
+    }
+
+    widget.cacheManager?.onPageChanged(targetIndex, widget.pageCount);
+    _scheduleSafeRebuild();
+  }
 
   void _setZoomState(bool value) {
     if (_isZooming == value) return;
@@ -150,21 +186,15 @@ class _TurnablePageViewState extends State<TurnablePageView>
     final indices = _computeActiveIndices();
     final sorted = indices.toList()..sort();
     return sorted
-        .map(
-          (i) => PageHost(
-            key: ValueKey<int>(i),
-            index: i,
-            child: widget.builder(context, i),
-          ),
-        )
+        .map((i) => PageHost(key: ValueKey<int>(i), index: i, child: widget.builder(context, i)))
         .toList();
   }
 
   Future<void> _setupPageFlipEventsAndController() async {
     widget.controller?.initializeController(pageFlip: _pageFlip);
-    _pageFlip.on('flip', (_) {
+    _pageFlip.on('flip', (event) {
       if (mounted) {
-        final newIndex = _pageFlip.getCurrentPageIndex();
+        final newIndex = _resolvePageIndexFromEvent(event.data);
         final left = newIndex.clamp(0, widget.pageCount - 1);
         final right = (newIndex + 1 < widget.pageCount) ? newIndex + 1 : -1;
         widget.settings.startPageIndex = left;
@@ -172,11 +202,14 @@ class _TurnablePageViewState extends State<TurnablePageView>
 
         // Shift the rendering window when the page changes.
         if (_currentPageIndex != left) {
-          setState(() {
-            _currentPageIndex = left;
-          });
+          _currentPageIndex = left;
           // Evict images outside the cache window.
           widget.cacheManager?.onPageChanged(left, widget.pageCount);
+          _scheduleSafeRebuild();
+        }
+
+        if (_isSyncingStartPage) {
+          return;
         }
 
         SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -188,15 +221,67 @@ class _TurnablePageViewState extends State<TurnablePageView>
     });
   }
 
+  int _resolvePageIndexFromEvent(dynamic data) {
+    if (data is int) {
+      return data;
+    }
+
+    if (data is Map<String, dynamic>) {
+      final page = data['page'];
+      if (page is int) {
+        return page;
+      }
+    }
+
+    if (data is Map) {
+      final page = data['page'];
+      if (page is int) {
+        return page;
+      }
+    }
+
+    return _pageFlip.getCurrentPageIndex();
+  }
+
+  void _scheduleSafeRebuild() {
+    final schedulerPhase = SchedulerBinding.instance.schedulerPhase;
+    final shouldDefer =
+        schedulerPhase != SchedulerPhase.idle &&
+        schedulerPhase != SchedulerPhase.postFrameCallbacks;
+
+    if (shouldDefer) {
+      if (_postFrameRebuildScheduled) {
+        return;
+      }
+
+      _postFrameRebuildScheduled = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _postFrameRebuildScheduled = false;
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {});
+      });
+
+      return;
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   void _animateResetZoom() {
     final currentScale = _transformationController.value.getMaxScaleOnAxis();
     if (currentScale > 1.01) {
       final Matrix4 startMatrix = _transformationController.value.clone();
       final Matrix4 endMatrix = Matrix4.identity();
 
-      _animation = Matrix4Tween(begin: startMatrix, end: endMatrix).animate(
-        CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
-      );
+      _animation = Matrix4Tween(
+        begin: startMatrix,
+        end: endMatrix,
+      ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
 
       _animation!.addListener(() {
         _transformationController.value = _animation!.value;
