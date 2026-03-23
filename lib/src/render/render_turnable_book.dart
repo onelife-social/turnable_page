@@ -615,7 +615,11 @@ class RenderTurnableBook extends RenderBox
   void _drawBookShadow(Canvas canvas, PageRect rect, Offset root) {
     if (!settings.drawShadow) return;
     final shadowSize = rect.width * settings.centerShadowSize;
+    final currentPageIndex = pageFlip.getCurrentPageIndex();
     final shadowOpacity = settings.centerShadowOpacity;
+
+    if (shadowOpacity <= 0 || currentPageIndex <= 2) return;
+
     canvas.save();
     canvas.clipRect(
       Rect.fromLTWH(rect.left + root.dx, rect.top + root.dy, rect.width, rect.height),
