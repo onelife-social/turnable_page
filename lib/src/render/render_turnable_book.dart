@@ -330,9 +330,8 @@ class RenderTurnableBook extends RenderBox
   @override
   BookOrientation calculateBoundsRect() {
     BookOrientation orientation = BookOrientation.landscape;
-    final blockWidth = _snapToPixel(size.width);
-    final blockHeight = _snapToPixel(size.height);
-    final middlePoint = model.Point(blockWidth / 2, blockHeight / 2);
+    final blockWidth = size.width;
+    final middlePoint = model.Point(blockWidth / 2, size.height / 2);
     final ratio = settings.width / settings.height;
     double pageWidth = settings.width;
     double pageHeight = settings.height;
@@ -345,14 +344,11 @@ class RenderTurnableBook extends RenderBox
           ? blockWidth
           : blockWidth / 2;
       if (pageWidth > settings.width) pageWidth = settings.width;
-      pageWidth = _snapToPixel(pageWidth);
       pageHeight = pageWidth / ratio;
-      if (pageHeight > blockHeight) {
-        pageHeight = blockHeight;
+      if (pageHeight > size.height) {
+        pageHeight = size.height;
         pageWidth = pageHeight * ratio;
       }
-      pageHeight = _snapToPixel(pageHeight);
-      pageWidth = _snapToPixel(pageWidth);
       left = orientation == BookOrientation.portrait
           ? middlePoint.x - pageWidth / 2 - pageWidth
           : middlePoint.x - pageWidth;
@@ -363,13 +359,11 @@ class RenderTurnableBook extends RenderBox
           left = middlePoint.x - pageWidth / 2 - pageWidth;
         }
       }
-      pageWidth = _snapToPixel(pageWidth);
-      pageHeight = _snapToPixel(pageHeight);
     }
     _boundsRect = PageRect(
-      left: _snapToPixel(left),
-      top: _snapToPixel(middlePoint.y - pageHeight / 2),
-      width: _snapToPixel(pageWidth * 2),
+      left: left,
+      top: middlePoint.y - pageHeight / 2,
+      width: pageWidth * 2,
       height: pageHeight,
       pageWidth: pageWidth,
     );
