@@ -333,6 +333,19 @@ class RenderTurnableBook extends RenderBox
         if (settings.usePortrait) {
           orientation = BookOrientation.portrait;
           left = middlePoint.x - pageWidth / 2 - pageWidth;
+        } else {
+          // Constrain page width to fit available space so that
+          // _boundsRect.left never goes negative.  This prevents
+          // coordinate mismatches between the render object bounds
+          // and the internal book coordinate system which cause
+          // center-fold flicker during flip animations.
+          pageWidth = blockWidth / 2;
+          pageHeight = pageWidth / ratio;
+          if (pageHeight > size.height) {
+            pageHeight = size.height;
+            pageWidth = pageHeight * ratio;
+          }
+          left = middlePoint.x - pageWidth;
         }
       }
     }

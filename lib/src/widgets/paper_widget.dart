@@ -68,7 +68,12 @@ class PaperWidget extends StatelessWidget {
           child: Container(
             clipBehavior: Clip.hardEdge,
             decoration: _buildFinalDecoration(),
-            child: child,
+            child: OverflowBox(
+              alignment: Alignment.center,
+              maxWidth: size.width,
+              maxHeight: size.height,
+              child: child,
+            ),
           ),
         ),
       ),
