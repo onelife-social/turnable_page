@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../enums/page_view_mode.dart';
@@ -52,13 +54,39 @@ class TurnablePage extends StatelessWidget {
     required double maxWidth,
     required double maxHeight,
     required double aspectRatio,
+    required double devicePixelRatio,
+    required bool usePortrait,
   }) {
     double height = maxWidth / aspectRatio;
     if (height > maxHeight) {
       height = maxHeight;
       maxWidth = height * aspectRatio;
     }
-    return Size(maxWidth, height);
+
+    if (devicePixelRatio <= 0) {
+      return Size(maxWidth, height);
+    }
+
+    int widthPixels = (maxWidth * devicePixelRatio).floor();
+    if (!usePortrait && widthPixels.isOdd) {
+      widthPixels = math.max(2, widthPixels - 1);
+    }
+    widthPixels = math.max(1, widthPixels);
+
+    final snappedWidth = widthPixels / devicePixelRatio;
+    int heightPixels = ((snappedWidth / aspectRatio) * devicePixelRatio)
+        .round();
+    if (heightPixels <= 0) {
+      heightPixels = math.max(1, (height * devicePixelRatio).floor());
+    }
+
+    if (maxHeight.isFinite) {
+      final maxHeightPixels = (maxHeight * devicePixelRatio).floor();
+      heightPixels = math.min(heightPixels, math.max(1, maxHeightPixels));
+    }
+
+    final snappedHeight = heightPixels / devicePixelRatio;
+    return Size(snappedWidth, snappedHeight);
   }
 
   double _getAspectRatio(bool isMobile) {
@@ -86,11 +114,14 @@ class TurnablePage extends StatelessWidget {
         final isMobile = constraints.maxWidth < 600;
         final aspectRatio = _getAspectRatio(isMobile);
         FlipSettings adjustedSettings = _getAdjustedSetting(isMobile);
+        final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
 
         final bookSize = _calculateBookSize(
           maxWidth: constraints.maxWidth,
           maxHeight: constraints.maxHeight,
           aspectRatio: aspectRatio,
+          devicePixelRatio: devicePixelRatio,
+          usePortrait: adjustedSettings.usePortrait,
         );
         adjustedSettings = adjustedSettings.copyWith(
           width: bookSize.width,
