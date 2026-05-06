@@ -618,8 +618,9 @@ class RenderTurnableBook extends RenderBox
     final currentPageIndex = pageFlip.getCurrentPageIndex();
     final totalPages = totalPageCount;
     final shadowOpacity = settings.centerShadowOpacity;
+    final forceShadow = settings.forceCenterShadow;
 
-    if (shadowOpacity <= 0 || currentPageIndex < 2 || currentPageIndex >= totalPages - 2) return;
+    if (shadowOpacity <= 0 || (!forceShadow && (currentPageIndex < 2 || currentPageIndex >= totalPages - 2))) return;
 
     canvas.save();
     canvas.clipRect(
