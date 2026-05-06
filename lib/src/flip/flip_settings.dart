@@ -73,6 +73,9 @@ class FlipSettings {
 
   /// Center spine shadow opacity (0.0 to 1.0)
   final double centerShadowOpacity;
+  
+  /// Force center shadow to always be drawn, even when page is not near center. Default: false
+  final bool forceCenterShadow;
 
   /// Center spine shadow size as fraction of page width (0.0 to 1.0)
   final double centerShadowSize;
@@ -130,6 +133,7 @@ class FlipSettings {
     this.onlyVerticalPageFlip = false,
     this.hideLeftShadow = false,
     this.centerShadowOpacity = 0.5,
+    this.forceCenterShadow = false,
     this.centerShadowSize = 0.05,
   });
 
@@ -159,6 +163,7 @@ class FlipSettings {
     bool? onlyVerticalPageFlip,
     bool? hideLeftShadow,
     double? centerShadowOpacity,
+    bool? forceCenterShadow,
     double? centerShadowSize,
   }) {
     return FlipSettings(
@@ -189,6 +194,7 @@ class FlipSettings {
       onlyVerticalPageFlip: onlyVerticalPageFlip ?? this.onlyVerticalPageFlip,
       centerShadowOpacity: centerShadowOpacity ?? this.centerShadowOpacity,
       centerShadowSize: centerShadowSize ?? this.centerShadowSize,
+      forceCenterShadow: forceCenterShadow ?? this.forceCenterShadow,
     );
   }
 }
