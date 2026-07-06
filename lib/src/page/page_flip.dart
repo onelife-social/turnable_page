@@ -109,8 +109,12 @@ class PageFlip extends EventObject {
     final totalPages = getPageCount();
 
     if (currentIndex < totalPages - 1) {
+      // No optimistic 'flip' event here: it reported `currentIndex + 1` (a
+      // single-page step) which is wrong for a two-page/landscape spread and
+      // fired a spurious onPageChanged (plus a mid-animation window rebuild)
+      // before the turn finished. showSpread emits the authoritative spread
+      // index when the animation completes.
       flipProcess.flipNext(corner);
-      trigger('flip', this, {'page': currentIndex + 1, 'direction': 'next'});
     }
   }
 
@@ -121,8 +125,9 @@ class PageFlip extends EventObject {
     final currentIndex = getCurrentPageIndex();
 
     if (currentIndex > 0) {
+      // See flipNext: the authoritative page index is emitted by showSpread on
+      // completion, so no optimistic 'flip' event is triggered here.
       flipProcess.flipPrev(corner);
-      trigger('flip', this, {'page': currentIndex - 1, 'direction': 'prev'});
     }
   }
 
