@@ -231,7 +231,13 @@ class PageFlip extends EventObject {
   }
 
   /// Handle user stop interaction
-  void userStop(Point pos, [bool isSwipe = false]) {
+  ///
+  /// [forceSwipe] completes the fold already in progress from its current
+  /// position (via the inertia path) when the release was recognised as a
+  /// deliberate swipe. This avoids restarting the flip from the page corner,
+  /// which snapped the page back to nearly-unflipped before animating and
+  /// looked like turning two pages at once.
+  void userStop(Point pos, [bool isSwipe = false, bool forceSwipe = false]) {
     if (isUserTouch) {
       isUserTouch = false;
 
@@ -239,8 +245,9 @@ class PageFlip extends EventObject {
         final velocity = _computeVelocity();
         final settings = getSettings;
         final fastSwipe =
-            settings.enableInertia &&
-            velocity.abs() > settings.inertiaVelocityThreshold;
+            forceSwipe ||
+            (settings.enableInertia &&
+                velocity.abs() > settings.inertiaVelocityThreshold);
         if (!isUserMove) {
           flipProcess.flip(pos);
         } else {
