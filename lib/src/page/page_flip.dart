@@ -109,8 +109,12 @@ class PageFlip extends EventObject {
     final totalPages = getPageCount();
 
     if (currentIndex < totalPages - 1) {
+      // No optimistic 'flip' event here: it reported `currentIndex + 1` (a
+      // single-page step) which is wrong for a two-page/landscape spread and
+      // fired a spurious onPageChanged (plus a mid-animation window rebuild)
+      // before the turn finished. showSpread emits the authoritative spread
+      // index when the animation completes.
       flipProcess.flipNext(corner);
-      trigger('flip', this, {'page': currentIndex + 1, 'direction': 'next'});
     }
   }
 
@@ -121,8 +125,9 @@ class PageFlip extends EventObject {
     final currentIndex = getCurrentPageIndex();
 
     if (currentIndex > 0) {
+      // See flipNext: the authoritative page index is emitted by showSpread on
+      // completion, so no optimistic 'flip' event is triggered here.
       flipProcess.flipPrev(corner);
-      trigger('flip', this, {'page': currentIndex - 1, 'direction': 'prev'});
     }
   }
 
@@ -231,7 +236,13 @@ class PageFlip extends EventObject {
   }
 
   /// Handle user stop interaction
-  void userStop(Point pos, [bool isSwipe = false]) {
+  ///
+  /// [forceSwipe] completes the fold already in progress from its current
+  /// position (via the inertia path) when the release was recognised as a
+  /// deliberate swipe. This avoids restarting the flip from the page corner,
+  /// which snapped the page back to nearly-unflipped before animating and
+  /// looked like turning two pages at once.
+  void userStop(Point pos, [bool isSwipe = false, bool forceSwipe = false]) {
     if (isUserTouch) {
       isUserTouch = false;
 
@@ -239,8 +250,9 @@ class PageFlip extends EventObject {
         final velocity = _computeVelocity();
         final settings = getSettings;
         final fastSwipe =
-            settings.enableInertia &&
-            velocity.abs() > settings.inertiaVelocityThreshold;
+            forceSwipe ||
+            (settings.enableInertia &&
+                velocity.abs() > settings.inertiaVelocityThreshold);
         if (!isUserMove) {
           flipProcess.flip(pos);
         } else {

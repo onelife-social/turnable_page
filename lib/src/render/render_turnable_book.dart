@@ -5,7 +5,6 @@ import 'package:flutter/scheduler.dart';
 import '../collection/page_collection_impl.dart';
 import '../enums/animation_process.dart';
 import '../enums/book_orientation.dart';
-import '../enums/flip_corner.dart';
 import '../enums/flip_direction.dart';
 import '../enums/flipping_state.dart';
 import '../enums/page_orientation.dart';
@@ -880,8 +879,15 @@ class RenderTurnableBook extends RenderBox
 
     // Process page flip gesture
     if (_touchPoint != null && _isValidSwipe(point)) {
-      _processSwipeGesture(point);
+      // Deliberate swipe: a fold is already in progress (this point is only
+      // reached when the gesture wasn't a child tap), so complete it from its
+      // current position via the inertia path. Restarting through
+      // flipNext/flipPrev reset the fold and re-animated from the page corner,
+      // which snapped the page back and looked like flipping two pages at once.
       _touchPoint = null;
+      pageFlip.userStop(point, false, true);
+      // Ensure animation continues for completion
+      ensureAnimating();
     } else {
       _touchPoint = null;
       // Only trigger flip on tap if user didn't interact with a child widget
@@ -907,20 +913,6 @@ class RenderTurnableBook extends RenderBox
     final distY = (point.y - _touchPoint!.point.y).abs();
     final timeDelta = DateTime.now().millisecondsSinceEpoch - _touchPoint!.time;
     return dx.abs() > _swipeDistance && distY < _swipeDistance * 2 && timeDelta < _swipeTimeout;
-  }
-
-  void _processSwipeGesture(model.Point point) {
-    final dx = point.x - _touchPoint!.point.x;
-    final rect = getRect();
-    final halfHeight = rect.height * 0.5;
-    final corner = _touchPoint!.point.y < halfHeight ? FlipCorner.top : FlipCorner.bottom;
-    if (dx > 0) {
-      pageFlip.flipPrev(corner);
-    } else {
-      pageFlip.flipNext(corner);
-    }
-    // Ensure animation continues for swipe gesture
-    ensureAnimating();
   }
 
   void ensureAnimating() => _scheduleFrame();
