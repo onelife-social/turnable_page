@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.1.0 - 2026-10-19
+### 💥 Breaking Changes
+- **PDF support removed**: Dropped the `TurnablePdf` widget (with `TurnablePdf.initPDFLoaders()`), the `PdfSource` enum, the `LoadingBuilder` and `ErrorBuilder` typedefs, and the `pdfrx` dependency. Apps that depend on this package no longer bundle PDFium and `pdfium.wasm`. To flip through a PDF, render its pages to images and pass them to `TurnablePage`.
+
 ## 1.0.1 - 2025-09-30
 ### ✨ New Features
 - **FlipSettings Controls**: Added `hideLeftShadow` to individually disable the left page shadow in single-page mode.
